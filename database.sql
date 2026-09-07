@@ -112,7 +112,7 @@ CREATE TABLE orders (
   note TEXT,
   payment_method ENUM('cod', 'bank_transfer', 'e_wallet') DEFAULT 'cod',
   payment_status ENUM('pending', 'paid', 'failed') DEFAULT 'pending',
-  order_status ENUM('pending', 'confirmed', 'shipping', 'delivered', 'cancelled') DEFAULT 'pending',
+  order_status ENUM('pending', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled') DEFAULT 'pending',
   subtotal DECIMAL(15,0) NOT NULL,
   discount DECIMAL(15,0) DEFAULT 0,
   total DECIMAL(15,0) NOT NULL,
@@ -192,10 +192,12 @@ CREATE TABLE contacts (
 -- DỮ LIỆU MẪU
 -- =====================================================
 
--- Tài khoản Admin mặc định (password: Admin@123)
+-- Tài khoản Admin mặc định (username: admin | password: Admin@123)
+-- Tài khoản Khách hàng mẫu (username: nguyenvana | password: Customer@123)
+-- LƯU Ý: hash bên dưới được tạo lại bằng bcryptjs (10 rounds) để khớp đúng với mật khẩu ghi chú.
 INSERT INTO users (full_name, username, email, password, role, is_active) VALUES
-('Administrator', 'admin', 'admin@campro.vn', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 1),
-('Nguyễn Văn A', 'nguyenvana', 'customer@campro.vn', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', 1);
+('Administrator', 'admin', 'admin@campro.vn', '$2a$10$4GpROTlPiJDr2ECFr7rhUubKBMipBXAwiA/jvCW8MJZpUmgvCiJBm', 'admin', 1),
+('Nguyễn Văn A', 'nguyenvana', 'customer@campro.vn', '$2a$10$JmjAJeE1TzZdgAy8p7g0OOZmOTxWh8OO1O97k7h8tm3.jM1K7bqBC', 'customer', 1);
 
 -- Danh mục sản phẩm
 INSERT INTO categories (name, slug, description, is_active) VALUES

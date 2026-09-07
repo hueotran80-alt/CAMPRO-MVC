@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title %> | CAMPRO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="/css/style.css">
 </head>
@@ -12,7 +14,7 @@
 <nav class="navbar">
   <div class="container nav-inner">
     <a href="/" class="logo">🎥 CAMPRO</a>
-    <ul class="nav-links">
+    <ul class="nav-links" id="navLinks">
       <li><a href="/">Trang chủ</a></li>
       <li><a href="/products">Sản phẩm</a></li>
       <li><a href="/news">Tin tức</a></li>
@@ -34,6 +36,9 @@
         <a href="/auth/login" class="btn btn-outline">Đăng nhập</a>
         <a href="/auth/register" class="btn btn-primary">Đăng ký</a>
       <% } %>
+      <button class="nav-toggle" id="navToggle" aria-label="Mở menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </div>
 </nav>

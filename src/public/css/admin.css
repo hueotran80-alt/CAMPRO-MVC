@@ -20,7 +20,7 @@
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body.admin-body { font-family: 'Segoe UI', sans-serif; background: #0d0f16; }
+body.admin-body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #0d0f16; -webkit-font-smoothing: antialiased; }
 a { text-decoration: none; color: var(--primary); }
 
 /* ===== LAYOUT ===== */

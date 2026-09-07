@@ -34,8 +34,10 @@ canvas { width: 100% !important; }
 .status-badge { display: inline-block; padding: 0.18rem 0.55rem; border-radius: 20px; font-size: 0.7rem; font-weight: 700; }
 .st-pending    { background: rgba(245,158,11,0.2); color: #f59e0b; }
 .st-completed  { background: rgba(52,211,153,0.2); color: #34d399; }
+.st-delivered  { background: rgba(52,211,153,0.2); color: #34d399; }
 .st-cancelled  { background: rgba(248,113,113,0.2); color: #f87171; }
 .st-processing { background: rgba(96,165,250,0.2); color: #60a5fa; }
+.st-confirmed  { background: rgba(96,165,250,0.2); color: #60a5fa; }
 .st-shipping   { background: rgba(167,139,250,0.2); color: #a78bfa; }
 </style>
 
@@ -94,7 +96,7 @@ canvas { width: 100% !important; }
           <td style="color:#4e9af1;font-weight:600"><%= Number(o.total).toLocaleString('vi-VN') %>đ</td>
           <td>
             <span class="status-badge st-<%= o.order_status %>">
-              <%= o.order_status === 'pending' ? 'Chờ xử lý' : o.order_status === 'completed' ? 'Hoàn thành' : o.order_status === 'cancelled' ? 'Đã hủy' : o.order_status === 'processing' ? 'Đang xử lý' : 'Đang giao' %>
+              <%= o.order_status === 'pending' ? 'Chờ xử lý' : o.order_status === 'confirmed' ? 'Đã xác nhận' : o.order_status === 'shipping' ? 'Đang giao' : o.order_status === 'delivered' ? 'Đã giao' : o.order_status === 'completed' ? 'Hoàn thành' : o.order_status === 'cancelled' ? 'Đã hủy' : o.order_status %>
             </span>
           </td>
         </tr>

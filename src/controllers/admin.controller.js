@@ -98,9 +98,14 @@ const adminController = {
   },
 
   productCreate: async (req, res) => {
-    const [categories] = await db.query('SELECT * FROM categories WHERE is_active = 1');
-    const [suppliers]  = await db.query('SELECT * FROM suppliers WHERE is_active = 1');
-    res.render('admin/product-form', { title: 'Thêm sản phẩm', product: null, categories, suppliers });
+    try {
+      const [categories] = await db.query('SELECT * FROM categories WHERE is_active = 1');
+      const [suppliers]  = await db.query('SELECT * FROM suppliers WHERE is_active = 1');
+      res.render('admin/product-form', { title: 'Thêm sản phẩm', product: null, categories, suppliers });
+    } catch (err) {
+      req.flash('error', 'Lỗi tải form thêm sản phẩm.');
+      res.redirect('/admin/products');
+    }
   },
 
   productStore: async (req, res) => {
@@ -194,68 +199,100 @@ const adminController = {
 
   // ==================== CATEGORIES ====================
   categoryList: async (req, res) => {
-    const [categories] = await db.query(
-      `SELECT c.*, COUNT(p.id) AS product_count
-       FROM categories c
-       LEFT JOIN products p ON c.id = p.category_id
-       GROUP BY c.id
-       ORDER BY c.created_at DESC`
-    );
-    res.render('admin/categories', { title: 'Quản lý danh mục', categories });
+    try {
+      const [categories] = await db.query(
+        `SELECT c.*, COUNT(p.id) AS product_count
+         FROM categories c
+         LEFT JOIN products p ON c.id = p.category_id
+         GROUP BY c.id
+         ORDER BY c.created_at DESC`
+      );
+      res.render('admin/categories', { title: 'Quản lý danh mục', categories });
+    } catch (err) {
+      res.status(500).render('pages/error', { title: 'Lỗi', message: err.message });
+    }
   },
 
   categoryCreate: async (req, res) => {
-    const { name, description } = req.body;
-    if (!name) { req.flash('error', 'Tên danh mục là bắt buộc.'); return res.redirect('/admin/categories'); }
-    const slug = makeSlug(name) + '-' + Date.now();
-    await db.query('INSERT INTO categories (name, slug, description) VALUES (?, ?, ?)', [name, slug, description || null]);
-    req.flash('success', 'Thêm danh mục thành công!');
+    try {
+      const { name, description } = req.body;
+      if (!name) { req.flash('error', 'Tên danh mục là bắt buộc.'); return res.redirect('/admin/categories'); }
+      const slug = makeSlug(name) + '-' + Date.now();
+      await db.query('INSERT INTO categories (name, slug, description) VALUES (?, ?, ?)', [name, slug, description || null]);
+      req.flash('success', 'Thêm danh mục thành công!');
+    } catch (err) {
+      req.flash('error', err.code === 'ER_DUP_ENTRY' ? 'Danh mục đã tồn tại.' : 'Lỗi thêm danh mục.');
+    }
     return res.redirect('/admin/categories');
   },
 
   categoryUpdate: async (req, res) => {
-    const { name, description, is_active } = req.body;
-    await db.query('UPDATE categories SET name=?, description=?, is_active=? WHERE id=?', [name, description, is_active ?? 1, req.params.id]);
-    req.flash('success', 'Cập nhật danh mục thành công!');
+    try {
+      const { name, description, is_active } = req.body;
+      await db.query('UPDATE categories SET name=?, description=?, is_active=? WHERE id=?', [name, description, is_active ?? 1, req.params.id]);
+      req.flash('success', 'Cập nhật danh mục thành công!');
+    } catch (err) {
+      req.flash('error', 'Lỗi cập nhật danh mục.');
+    }
     return res.redirect('/admin/categories');
   },
 
   categoryDelete: async (req, res) => {
-    await db.query('DELETE FROM categories WHERE id = ?', [req.params.id]);
-    req.flash('success', 'Xóa danh mục thành công!');
+    try {
+      await db.query('DELETE FROM categories WHERE id = ?', [req.params.id]);
+      req.flash('success', 'Xóa danh mục thành công!');
+    } catch (err) {
+      req.flash('error', 'Không thể xóa danh mục đang có sản phẩm liên kết.');
+    }
     return res.redirect('/admin/categories');
   },
 
   // ==================== SUPPLIERS ====================
   supplierList: async (req, res) => {
-    const [suppliers] = await db.query(
-      `SELECT s.*, COUNT(p.id) AS product_count
-       FROM suppliers s
-       LEFT JOIN products p ON s.id = p.supplier_id
-       GROUP BY s.id
-       ORDER BY s.created_at DESC`
-    );
-    res.render('admin/suppliers', { title: 'Quản lý nhà cung cấp', suppliers });
+    try {
+      const [suppliers] = await db.query(
+        `SELECT s.*, COUNT(p.id) AS product_count
+         FROM suppliers s
+         LEFT JOIN products p ON s.id = p.supplier_id
+         GROUP BY s.id
+         ORDER BY s.created_at DESC`
+      );
+      res.render('admin/suppliers', { title: 'Quản lý nhà cung cấp', suppliers });
+    } catch (err) {
+      res.status(500).render('pages/error', { title: 'Lỗi', message: err.message });
+    }
   },
 
   supplierCreate: async (req, res) => {
-    const { name, email, phone, address, website } = req.body;
-    if (!name) { req.flash('error', 'Tên nhà cung cấp là bắt buộc.'); return res.redirect('/admin/suppliers'); }
-    await db.query('INSERT INTO suppliers (name, email, phone, address, website) VALUES (?, ?, ?, ?, ?)', [name, email || null, phone || null, address || null, website || null]);
-    req.flash('success', 'Thêm nhà cung cấp thành công!');
+    try {
+      const { name, email, phone, address, website } = req.body;
+      if (!name) { req.flash('error', 'Tên nhà cung cấp là bắt buộc.'); return res.redirect('/admin/suppliers'); }
+      await db.query('INSERT INTO suppliers (name, email, phone, address, website) VALUES (?, ?, ?, ?, ?)', [name, email || null, phone || null, address || null, website || null]);
+      req.flash('success', 'Thêm nhà cung cấp thành công!');
+    } catch (err) {
+      req.flash('error', 'Lỗi thêm nhà cung cấp.');
+    }
     return res.redirect('/admin/suppliers');
   },
 
   supplierUpdate: async (req, res) => {
-    const { name, email, phone, address, website, is_active } = req.body;
-    await db.query('UPDATE suppliers SET name=?, email=?, phone=?, address=?, website=?, is_active=? WHERE id=?', [name, email, phone, address, website, is_active ?? 1, req.params.id]);
-    req.flash('success', 'Cập nhật nhà cung cấp thành công!');
+    try {
+      const { name, email, phone, address, website, is_active } = req.body;
+      await db.query('UPDATE suppliers SET name=?, email=?, phone=?, address=?, website=?, is_active=? WHERE id=?', [name, email, phone, address, website, is_active ?? 1, req.params.id]);
+      req.flash('success', 'Cập nhật nhà cung cấp thành công!');
+    } catch (err) {
+      req.flash('error', 'Lỗi cập nhật nhà cung cấp.');
+    }
     return res.redirect('/admin/suppliers');
   },
 
   supplierDelete: async (req, res) => {
-    await db.query('DELETE FROM suppliers WHERE id = ?', [req.params.id]);
-    req.flash('success', 'Xóa nhà cung cấp thành công!');
+    try {
+      await db.query('DELETE FROM suppliers WHERE id = ?', [req.params.id]);
+      req.flash('success', 'Xóa nhà cung cấp thành công!');
+    } catch (err) {
+      req.flash('error', 'Không thể xóa nhà cung cấp đang có sản phẩm liên kết.');
+    }
     return res.redirect('/admin/suppliers');
   },
 
@@ -301,9 +338,13 @@ const adminController = {
   },
 
   orderUpdateStatus: async (req, res) => {
-    const { order_status, payment_status } = req.body;
-    await db.query('UPDATE orders SET order_status=?, payment_status=? WHERE id=?', [order_status, payment_status, req.params.id]);
-    req.flash('success', 'Cập nhật trạng thái thành công!');
+    try {
+      const { order_status, payment_status } = req.body;
+      await db.query('UPDATE orders SET order_status=?, payment_status=? WHERE id=?', [order_status, payment_status, req.params.id]);
+      req.flash('success', 'Cập nhật trạng thái thành công!');
+    } catch (err) {
+      req.flash('error', 'Lỗi cập nhật trạng thái đơn hàng.');
+    }
     return res.redirect(`/admin/orders/${req.params.id}`);
   },
 
@@ -360,8 +401,12 @@ const adminController = {
 
   // ==================== COUPONS ====================
   couponList: async (req, res) => {
-    const [coupons] = await db.query('SELECT * FROM coupons ORDER BY created_at DESC');
-    res.render('admin/coupons', { title: 'Quản lý mã giảm giá', coupons });
+    try {
+      const [coupons] = await db.query('SELECT * FROM coupons ORDER BY created_at DESC');
+      res.render('admin/coupons', { title: 'Quản lý mã giảm giá', coupons });
+    } catch (err) {
+      res.status(500).render('pages/error', { title: 'Lỗi', message: err.message });
+    }
   },
 
   couponCreate: async (req, res) => {
@@ -380,15 +425,23 @@ const adminController = {
   },
 
   couponDelete: async (req, res) => {
-    await db.query('DELETE FROM coupons WHERE id = ?', [req.params.id]);
-    req.flash('success', 'Xóa mã giảm giá thành công!');
+    try {
+      await db.query('DELETE FROM coupons WHERE id = ?', [req.params.id]);
+      req.flash('success', 'Xóa mã giảm giá thành công!');
+    } catch (err) {
+      req.flash('error', 'Lỗi xóa mã giảm giá.');
+    }
     return res.redirect('/admin/coupons');
   },
 
   // ==================== NEWS ====================
   newsList: async (req, res) => {
-    const [news] = await db.query('SELECT n.*, u.full_name AS author_name FROM news n LEFT JOIN users u ON n.author_id = u.id ORDER BY n.created_at DESC');
-    res.render('admin/news', { title: 'Quản lý tin tức', news });
+    try {
+      const [news] = await db.query('SELECT n.*, u.full_name AS author_name FROM news n LEFT JOIN users u ON n.author_id = u.id ORDER BY n.created_at DESC');
+      res.render('admin/news', { title: 'Quản lý tin tức', news });
+    } catch (err) {
+      res.status(500).render('pages/error', { title: 'Lỗi', message: err.message });
+    }
   },
 
   newsCreate: (req, res) => { res.render('admin/news-form', { title: 'Thêm bài viết', article: null }); },
@@ -409,9 +462,14 @@ const adminController = {
   },
 
   newsEdit: async (req, res) => {
-    const [rows] = await db.query('SELECT * FROM news WHERE id = ?', [req.params.id]);
-    if (!rows.length) return res.status(404).render('pages/404', { title: 'Không tìm thấy' });
-    res.render('admin/news-form', { title: 'Sửa bài viết', article: rows[0] });
+    try {
+      const [rows] = await db.query('SELECT * FROM news WHERE id = ?', [req.params.id]);
+      if (!rows.length) return res.status(404).render('pages/404', { title: 'Không tìm thấy' });
+      res.render('admin/news-form', { title: 'Sửa bài viết', article: rows[0] });
+    } catch (err) {
+      req.flash('error', 'Lỗi tải bài viết.');
+      res.redirect('/admin/news');
+    }
   },
 
   newsUpdate: async (req, res) => {
@@ -430,31 +488,47 @@ const adminController = {
   },
 
   newsDelete: async (req, res) => {
-    const [rows] = await db.query('SELECT thumbnail FROM news WHERE id = ?', [req.params.id]);
-    if (rows[0]?.thumbnail) { const p = path.join(UPLOAD_DIR, rows[0].thumbnail); if (fs.existsSync(p)) fs.unlinkSync(p); }
-    await db.query('DELETE FROM news WHERE id = ?', [req.params.id]);
-    req.flash('success', 'Xóa bài viết thành công!');
+    try {
+      const [rows] = await db.query('SELECT thumbnail FROM news WHERE id = ?', [req.params.id]);
+      if (rows[0]?.thumbnail) { const p = path.join(UPLOAD_DIR, rows[0].thumbnail); if (fs.existsSync(p)) fs.unlinkSync(p); }
+      await db.query('DELETE FROM news WHERE id = ?', [req.params.id]);
+      req.flash('success', 'Xóa bài viết thành công!');
+    } catch (err) {
+      req.flash('error', 'Lỗi xóa bài viết.');
+    }
     return res.redirect('/admin/news');
   },
 
   // ==================== CONTACTS ====================
   contactList: async (req, res) => {
-    const { status } = req.query;
-    const where = status ? 'WHERE status = ?' : '';
-    const [contacts] = await db.query(`SELECT * FROM contacts ${where} ORDER BY created_at DESC`, status ? [status] : []);
-    res.render('admin/contacts', { title: 'Quản lý liên hệ', contacts, query: req.query });
+    try {
+      const { status } = req.query;
+      const where = status ? 'WHERE status = ?' : '';
+      const [contacts] = await db.query(`SELECT * FROM contacts ${where} ORDER BY created_at DESC`, status ? [status] : []);
+      res.render('admin/contacts', { title: 'Quản lý liên hệ', contacts, query: req.query });
+    } catch (err) {
+      res.status(500).render('pages/error', { title: 'Lỗi', message: err.message });
+    }
   },
 
   contactReply: async (req, res) => {
-    const { admin_reply } = req.body;
-    await db.query('UPDATE contacts SET status = ?, admin_reply = ? WHERE id = ?', ['replied', admin_reply, req.params.id]);
-    req.flash('success', 'Đã lưu phản hồi!');
+    try {
+      const { admin_reply } = req.body;
+      await db.query('UPDATE contacts SET status = ?, admin_reply = ? WHERE id = ?', ['replied', admin_reply, req.params.id]);
+      req.flash('success', 'Đã lưu phản hồi!');
+    } catch (err) {
+      req.flash('error', 'Lỗi lưu phản hồi.');
+    }
     return res.redirect('/admin/contacts');
   },
 
   contactDelete: async (req, res) => {
-    await db.query('DELETE FROM contacts WHERE id = ?', [req.params.id]);
-    req.flash('success', 'Xóa liên hệ thành công!');
+    try {
+      await db.query('DELETE FROM contacts WHERE id = ?', [req.params.id]);
+      req.flash('success', 'Xóa liên hệ thành công!');
+    } catch (err) {
+      req.flash('error', 'Lỗi xóa liên hệ.');
+    }
     return res.redirect('/admin/contacts');
   },
 
@@ -491,16 +565,24 @@ const adminController = {
   },
 
   customerToggle: async (req, res) => {
-    const [rows] = await db.query("SELECT is_active FROM users WHERE id = ? AND role = 'customer'", [req.params.id]);
-    if (!rows.length) { req.flash('error', 'Không tìm thấy.'); return res.redirect('/admin/customers'); }
-    await db.query('UPDATE users SET is_active = ? WHERE id = ?', [rows[0].is_active ? 0 : 1, req.params.id]);
-    req.flash('success', 'Cập nhật trạng thái thành công.');
+    try {
+      const [rows] = await db.query("SELECT is_active FROM users WHERE id = ? AND role = 'customer'", [req.params.id]);
+      if (!rows.length) { req.flash('error', 'Không tìm thấy.'); return res.redirect('/admin/customers'); }
+      await db.query('UPDATE users SET is_active = ? WHERE id = ?', [rows[0].is_active ? 0 : 1, req.params.id]);
+      req.flash('success', 'Cập nhật trạng thái thành công.');
+    } catch (err) {
+      req.flash('error', 'Lỗi cập nhật trạng thái khách hàng.');
+    }
     return res.redirect('/admin/customers');
   },
 
   customerDelete: async (req, res) => {
-    await db.query("DELETE FROM users WHERE id = ? AND role = 'customer'", [req.params.id]);
-    req.flash('success', 'Xóa khách hàng thành công!');
+    try {
+      await db.query("DELETE FROM users WHERE id = ? AND role = 'customer'", [req.params.id]);
+      req.flash('success', 'Xóa khách hàng thành công!');
+    } catch (err) {
+      req.flash('error', 'Không thể xóa khách hàng này (có thể do đã có đơn hàng liên kết).');
+    }
     return res.redirect('/admin/customers');
   }
 };
