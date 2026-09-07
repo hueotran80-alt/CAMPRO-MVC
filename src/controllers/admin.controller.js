@@ -286,13 +286,15 @@ const adminController = {
         [from, to]
       );
       const [dailyRevenue] = await db.query(
-        `SELECT DATE_FORMAT(created_at,'%d/%m/%Y') as day,
-                COUNT(*) as orders,
-                COALESCE(SUM(CASE WHEN order_status IN ('completed','delivered') THEN total ELSE 0 END),0) as revenue
-         FROM orders WHERE DATE(created_at) BETWEEN ? AND ?
-         GROUP BY DATE(created_at) ORDER BY DATE(created_at) ASC`,
-        [from, to]
-      );
+  `SELECT DATE_FORMAT(created_at,'%d/%m/%Y') as day,
+          COUNT(*) as orders,
+          COALESCE(SUM(CASE WHEN order_status IN ('completed','delivered') THEN total ELSE 0 END),0) as revenue
+   FROM orders
+   WHERE DATE(created_at) BETWEEN ? AND ?
+   GROUP BY DATE_FORMAT(created_at,'%d/%m/%Y')
+   ORDER BY MIN(created_at) ASC`,
+  [from, to]
+);
       const [topProducts] = await db.query(
         `SELECT p.name, p.image, SUM(oi.quantity) as sold,
                 SUM(oi.quantity * oi.price) as revenue
