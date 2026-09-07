@@ -23,16 +23,24 @@ const adminController = {
         "SELECT o.*, u.full_name FROM orders o LEFT JOIN users u ON o.user_id = u.id ORDER BY o.created_at DESC LIMIT 8"
       );
       const [topProducts] = await db.query(
-        `SELECT p.id, p.name, p.image, SUM(oi.quantity) as sold FROM order_items oi
-         JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id
-         WHERE o.order_status NOT IN ('cancelled') GROUP BY p.id ORDER BY sold DESC LIMIT 5`
+        `SELECT p.id, p.name, p.image, SUM(oi.quantity) AS sold
+         FROM order_items oi
+         JOIN products p ON oi.product_id = p.id
+         JOIN orders o ON oi.order_id = o.id
+         WHERE o.order_status NOT IN ('cancelled')
+         GROUP BY p.id, p.name, p.image
+         ORDER BY sold DESC
+         LIMIT 5`
       );
       // 7 days revenue chart
       const [revenueChart] = await db.query(
-        `SELECT DATE_FORMAT(created_at,'%d/%m') as day, COALESCE(SUM(total),0) as revenue
-         FROM orders WHERE order_status IN ('completed','delivered')
-         AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-         GROUP BY DATE(created_at) ORDER BY DATE(created_at) ASC`
+        `SELECT DATE_FORMAT(DATE(created_at),'%d/%m') AS day,
+                COALESCE(SUM(total), 0) AS revenue
+         FROM orders
+         WHERE order_status IN ('completed','delivered')
+           AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+         GROUP BY DATE(created_at)
+         ORDER BY DATE(created_at) ASC`
       );
       res.render('admin/dashboard', {
         title: 'Dashboard',
@@ -109,7 +117,13 @@ const adminController = {
       req.flash('success', 'Thêm sản phẩm thành công!');
       return res.redirect('/admin/products');
     } catch (err) {
-      req.flash('error', 'Lỗi thêm sản phẩm.');
+      // Nếu upload thành công nhưng ghi DB lỗi, xóa file vừa upload để tránh file rác.
+      if (req.file?.filename) {
+        const uploaded = path.join(UPLOAD_DIR, req.file.filename);
+        if (fs.existsSync(uploaded)) fs.unlinkSync(uploaded);
+      }
+      console.error('Lỗi thêm sản phẩm:', err.message);
+      req.flash('error', 'Lỗi thêm sản phẩm: ' + err.message);
       return res.redirect('/admin/products/create');
     }
   },
@@ -143,7 +157,14 @@ const adminController = {
       req.flash('success', 'Cập nhật sản phẩm thành công!');
       return res.redirect('/admin/products');
     } catch (err) {
-      req.flash('error', 'Lỗi cập nhật.'); return res.redirect(`/admin/products/${req.params.id}/edit`);
+      // Nếu file mới đã upload nhưng cập nhật DB thất bại, xóa file mới.
+      if (req.file?.filename) {
+        const uploaded = path.join(UPLOAD_DIR, req.file.filename);
+        if (fs.existsSync(uploaded)) fs.unlinkSync(uploaded);
+      }
+      console.error('Lỗi cập nhật sản phẩm:', err.message);
+      req.flash('error', 'Lỗi cập nhật: ' + err.message);
+      return res.redirect(`/admin/products/${req.params.id}/edit`);
     }
   },
 
@@ -173,7 +194,13 @@ const adminController = {
 
   // ==================== CATEGORIES ====================
   categoryList: async (req, res) => {
-    const [categories] = await db.query('SELECT c.*, COUNT(p.id) AS product_count FROM categories c LEFT JOIN products p ON c.id = p.category_id GROUP BY c.id ORDER BY c.created_at DESC');
+    const [categories] = await db.query(
+      `SELECT c.*, COUNT(p.id) AS product_count
+       FROM categories c
+       LEFT JOIN products p ON c.id = p.category_id
+       GROUP BY c.id
+       ORDER BY c.created_at DESC`
+    );
     res.render('admin/categories', { title: 'Quản lý danh mục', categories });
   },
 
@@ -201,7 +228,13 @@ const adminController = {
 
   // ==================== SUPPLIERS ====================
   supplierList: async (req, res) => {
-    const [suppliers] = await db.query('SELECT s.*, COUNT(p.id) AS product_count FROM suppliers s LEFT JOIN products p ON s.id = p.supplier_id GROUP BY s.id ORDER BY s.created_at DESC');
+    const [suppliers] = await db.query(
+      `SELECT s.*, COUNT(p.id) AS product_count
+       FROM suppliers s
+       LEFT JOIN products p ON s.id = p.supplier_id
+       GROUP BY s.id
+       ORDER BY s.created_at DESC`
+    );
     res.render('admin/suppliers', { title: 'Quản lý nhà cung cấp', suppliers });
   },
 
@@ -237,7 +270,13 @@ const adminController = {
       const whereStr = where.length ? 'WHERE ' + where.join(' AND ') : '';
       const offset = (parseInt(page) - 1) * limit;
       const [orders] = await db.query(
-        `SELECT o.*, COUNT(oi.id) AS item_count FROM orders o LEFT JOIN order_items oi ON o.id = oi.order_id ${whereStr} GROUP BY o.id ORDER BY o.created_at DESC LIMIT ? OFFSET ?`,
+        `SELECT o.*, COUNT(oi.id) AS item_count
+         FROM orders o
+         LEFT JOIN order_items oi ON o.id = oi.order_id
+         ${whereStr}
+         GROUP BY o.id
+         ORDER BY o.created_at DESC
+         LIMIT ? OFFSET ?`,
         [...params, limit, offset]
       );
       const [[{ total }]] = await db.query(`SELECT COUNT(*) as total FROM orders o ${whereStr}`, params);
@@ -286,23 +325,27 @@ const adminController = {
         [from, to]
       );
       const [dailyRevenue] = await db.query(
-  `SELECT DATE_FORMAT(created_at,'%d/%m/%Y') as day,
-          COUNT(*) as orders,
-          COALESCE(SUM(CASE WHEN order_status IN ('completed','delivered') THEN total ELSE 0 END),0) as revenue
-   FROM orders
-   WHERE DATE(created_at) BETWEEN ? AND ?
-   GROUP BY DATE_FORMAT(created_at,'%d/%m/%Y')
-   ORDER BY MIN(created_at) ASC`,
-  [from, to]
-);
+        `SELECT DATE_FORMAT(DATE(created_at),'%d/%m/%Y') AS day,
+                COUNT(*) AS orders,
+                COALESCE(SUM(CASE WHEN order_status IN ('completed','delivered') THEN total ELSE 0 END), 0) AS revenue
+         FROM orders
+         WHERE DATE(created_at) BETWEEN ? AND ?
+         GROUP BY DATE(created_at)
+         ORDER BY DATE(created_at) ASC`,
+        [from, to]
+      );
       const [topProducts] = await db.query(
-        `SELECT p.name, p.image, SUM(oi.quantity) as sold,
-                SUM(oi.quantity * oi.price) as revenue
+        `SELECT p.id, p.name, p.image,
+                SUM(oi.quantity) AS sold,
+                SUM(oi.quantity * oi.price) AS revenue
          FROM order_items oi
          JOIN products p ON oi.product_id = p.id
          JOIN orders o ON oi.order_id = o.id
-         WHERE o.order_status IN ('completed','delivered') AND DATE(o.created_at) BETWEEN ? AND ?
-         GROUP BY p.id ORDER BY sold DESC LIMIT 10`,
+         WHERE o.order_status IN ('completed','delivered')
+           AND DATE(o.created_at) BETWEEN ? AND ?
+         GROUP BY p.id, p.name, p.image
+         ORDER BY sold DESC
+         LIMIT 10`,
         [from, to]
       );
       res.render('admin/report', {
